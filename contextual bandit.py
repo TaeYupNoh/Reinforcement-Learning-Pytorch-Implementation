@@ -1,3 +1,5 @@
+# contextual bandit -> 여러 개의 bandits를 가정해, 상태(state)라는 개념 도입
+
 import torch
 import torch.nn as nn
 import torch.optim as optim
