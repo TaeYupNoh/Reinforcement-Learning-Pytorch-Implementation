@@ -73,17 +73,17 @@ e = 0.1
 # Training loop
 for episode in range(n_episodes):
     state = env.get_state()
-    # # action을 선택해야 하는데 두 가지 경우의 수가 있음
-    # # 랜덤한 액션을 선택하거나, Feed-forward를 통해 얻은 action을 선택
-    # if np.random.rand(1) < e:
-    #     action = np.random.randint(0, n_states)
-    # else:
-    #     # action_probs는 4개의 arms에 대한 softmax값 
-    #     #예) ([0.25, 0.25, 0.25, 0.25])
-    
-    # -> 현재 action을 선택하는 코드를 넣으면 오류가떠서 else 부분만 꺼낸 상태.
+    # action_probs는 4개의 arms에 대한 softmax값 
+    # 예) ([0.25, 0.25, 0.25, 0.25])
     action_probs = policy.get_action(state)
-    action = torch.multinomial(action_probs, num_samples=1) # 0-3 중 하나
+    
+    # action을 선택해야 하는데 두 가지 경우의 수가 있음
+    # 랜덤한 액션을 선택하거나, Feed-forward를 통해 얻은 action을 선택
+    if np.random.rand(1) < e:
+        action = np.random.randint(0, n_states)
+    else:     
+
+        action = torch.multinomial(action_probs, num_samples=1) # 0-3 중 하나
     
     reward = env.pull_arm(action) # 1 or -1
     total_reward[state, action] += reward
