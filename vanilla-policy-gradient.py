@@ -1,84 +1,72 @@
-import torch
-import torch.nn as nn
-import torch.optim as optim
-import numpy as np
-import random
+# vanilla policy gradient는 앞의 두 bandit 문제에서 고려한 것을 포함해 총 3가지를 고려해야 함
+# 1. 액션 의존성 :MAB에서 사용된 것처럼 각각의 액션이 보상을 가져다 줄 확률은 다름
+# 2. 상태 의존성 :MAB와 달리, CB에서 각 액션을 취할 때의 보상은 그 액션을 취할 당시의 상태와 관계가 있음
+# 3. 시간 의존성 :에이전트는 보상에 대해 시간 지연된 시점에 학습함, 따라서 데이터에 샘플을 저장 후 뭉쳐서 학습 
 
 import gym
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import torch.optim as optim
+from torch.distributions import Categorical
 
-class PolicyNetwork(nn.Module):
-    def __init__(self, input_dim, hidden_dim, output_dim):
-        super(PolicyNetwork, self).__init__()
-        self.hidden = nn.Linear(input_dim, hidden_dim)
-        self.output = nn.Linear(hidden_dim, output_dim)
+#Hyperparameters
+learning_rate = 0.002
+gamma         = 0.99
+
+class Policy(nn.Module):
+    def __init__(self):
+        super(Policy, self).__init__()
+        self.data = []
+        
+        self.fc1 = nn.Linear(4, 128)
+        self.fc2 = nn.Linear(128, 2)
+        self.optimizer = optim.Adam(self.parameters(), lr=learning_rate)
         
     def forward(self, x):
-        x = torch.relu(self.hidden(x))
-        x = torch.softmax(self.output(x), dim=-1)
+        x = F.relu(self.fc1(x))
+        x = F.softmax(self.fc2(x), dim=0)
         return x
-
-class Agent:
-    def __init__(self, input_dim, hidden_dim, output_dim, lr, batch_size):
-        self.policy_network = PolicyNetwork(input_dim, hidden_dim, output_dim)
-        self.optimizer = optim.Adam(self.policy_network.parameters(), lr=lr)
-        self.memory = []
-        self.batch_size = batch_size
+      
+    def put_data(self, item):
+        self.data.append(item)
         
-    def get_action(self, state):
-        state = torch.from_numpy(state).float()
-        probs = self.policy_network(state)
-        dist = torch.distributions.Categorical(probs)
-        action = dist.sample()
-        self.memory.append((state, action, None, None))
-        return action.item()
-    
-    def update_policy(self):
-        batch = random.sample(self.memory, self.batch_size)
-        states, actions, rewards, dones = zip(*batch)
-        
-        states = torch.tensor(states)
-        actions = torch.tensor(actions)
-        rewards = torch.tensor(rewards)
-        dones = torch.tensor(dones)
-        
-        log_probs = torch.log(self.policy_network(states))
-        log_probs_for_actions = torch.gather(log_probs, dim=1, index=actions.unsqueeze(1)).squeeze()
-        future_rewards = torch.zeros_like(rewards)
-        
-        for i in range(len(rewards)-2, -1, -1):
-            future_rewards[i] = rewards[i] + future_rewards[i+1] * (1 - dones[i])
-        
-        loss = - (log_probs_for_actions * future_rewards).mean()
+    def train_net(self):
+        R = 0
         self.optimizer.zero_grad()
-        loss.backward()
+        for r, prob in self.data[::-1]:
+            R = r + gamma * R
+            loss = -torch.log(prob) * R
+            loss.backward()
+        # backpropagation data 개수만큼 수행한 뒤 update -> 일종의 batch 단위 수행 느낌?
         self.optimizer.step()
-        
-        self.memory = []
+        self.data = []
 
-
-env = gym.make('CartPole-v1')
-agent = Agent(input_dim=env.observation_space.shape[0], 
-              hidden_dim=128, 
-              output_dim=env.action_space.n, 
-              lr=0.001,
-              batch_size=16)  # 배치 사이즈 설정
-n_episodes = 1000
-
-for i in range(n_episodes):
-    state = env.reset()[0]
-    done = False
-    total_reward = 0  # 에피소드에서 얻은 보상의 총합
+def main():
+    env = gym.make('CartPole-v1')
+    pi = Policy()
+    score = 0.0
+    print_interval = 100
     
-    while not done:
-        action = agent.get_action(state)
-        next_state, reward, done, _, _ = env.step(action)
-        agent.memory[-1] = (state, action, reward, done)  # 마지막 transition에 보상과 done 추가
+    for n_epi in range(5000):
+        s, _ = env.reset()
+        done = False
         
-        state = next_state
-        total_reward += reward
+        while not done: # CartPole-v1 forced to terminates at 500 step.
+            prob = pi(torch.from_numpy(s).float())
+            m = Categorical(prob)
+            a = m.sample()
+            s_prime, r, done, info, _ = env.step(a.item())
+            pi.put_data((r,prob[a]))
+            s = s_prime
+            score += r
+            
+        pi.train_net()
         
-        if done:  # 에피소드가 끝나면 에이전트 학습
-            agent.update_policy()
-        
-    if i % 100 == 0:
-        print(f"Episode {i+1}: Total Reward = {total_reward}")
+        if n_epi%print_interval==0 and n_epi!=0:
+            print("# of episode :{}, avg score : {}".format(n_epi, score/print_interval))
+            score = 0.0
+    env.close()
+    
+if __name__ == '__main__':
+    main()

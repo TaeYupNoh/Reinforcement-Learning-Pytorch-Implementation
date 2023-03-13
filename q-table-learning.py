@@ -12,7 +12,7 @@ Q = np.zeros([env.observation_space.n, env.action_space.n])
 lr = .85
 # discount factor (할인 인자가 크면 미래의 보상을 더 중요시하게 여겨 학습이 안정적이나, 느려짐)
 y = .99
-num_episodes = 2000
+num_episodes = 5000
 
 # 보상의 총계를 담을 리스트 생성
 rList = []
@@ -30,9 +30,9 @@ for i in range(num_episodes):
         a = np.argmax(Q[s,:] + np.random.randn(1,env.action_space.n)*(1./(i+1)))
         # 선택한 행동으로 환경에서 한 타임스텝 진행
         s1, r, d, _, _ = env.step(a)
-        # Q-Table 업데이트 (by 벨먼 방정식 : r + y*max(Q[s1,:]))
+        # Q-Table 업데이트 (by 벨만 방정식 : r + y*max(Q[s1,:]))
         # y*np.max(Q[s1,:]) - Q[s,a] : TD error(Temporal Difference error)
-        # TD error가 크면 더 나은 미래를 그릴 수 있으므로 더 많이 변화시킴
+        # TD error가 크면 현재의 행동이 미래에 더 큰 보상을 가져올 것이라고 예상하고, 그만큼 큰 변화를 가질 수 있게 함
         Q[s,a] = Q[s,a] + lr*(r + y*np.max(Q[s1,:]) - Q[s,a])
         rAll += r
         s = s1
