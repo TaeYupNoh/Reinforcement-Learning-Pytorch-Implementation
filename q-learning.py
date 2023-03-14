@@ -23,7 +23,8 @@ q_network = QNetwork()
 optimizer = optim.Adam(q_network.parameters(), lr=0.01)
 
 # Set learning parameters
-y = 0.99
+# gamma는 discount rate를 나타냄
+gamma = 0.99
 e = 0.1
 num_episodes = 5000
 jList = []
@@ -54,7 +55,7 @@ for i in range(num_episodes):
         maxQ1 = torch.max(Q1).item()
         targetQ = Q.clone()
         # 벨만 방정식
-        targetQ[0, a] = r + y*maxQ1
+        targetQ[0, a] = r + gamma*maxQ1
         # Train our network using target and predicted Q values
         loss = nn.MSELoss()(Q, targetQ)
         optimizer.zero_grad()
