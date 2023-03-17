@@ -1,3 +1,5 @@
+# actor-critic : 손실함수로 행동가치함수 + 상태가치함수를 사용
+
 import gym
 import torch
 import torch.nn as nn
