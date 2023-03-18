@@ -62,6 +62,7 @@ class ActorCritic(nn.Module):
 
         pi = self.pi(s, softmax_dim=1)
         pi_a = pi.gather(1, a)
+        # loss 함수를 행동가치함수 + 상태가치함수로 정의
         loss = -torch.log(pi_a) * delta.detach() + \
             F.smooth_l1_loss(self.v(s), td_target.detach())
 
