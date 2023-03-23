@@ -1,9 +1,13 @@
+# proximal : 가까운
+# policy를 업데이트 할 때, 기존의 policy와의 거리를 최소화하는 방향으로 업데이트
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 import gym
 from collections import deque
+
 
 class Policy(nn.Module):
     def __init__(self, input_dim, output_dim):
@@ -20,6 +24,7 @@ class Policy(nn.Module):
         std = torch.exp(self.log_std)
         dist = torch.distributions.Normal(mean, std)
         return dist
+
 
 def ppo(env_name, num_steps, mini_batch_size, ppo_epochs, threshold_reward):
     env = gym.make(env_name)
@@ -61,9 +66,11 @@ def ppo(env_name, num_steps, mini_batch_size, ppo_epochs, threshold_reward):
             print(f"Solved after {i} episodes")
             return rewards, steps
 
-        print(f"Episode {i}: total steps = {total_steps}, reward = {total_reward}")
+        print(
+            f"Episode {i}: total steps = {total_steps}, reward = {total_reward}")
 
     return rewards, steps
+
 
 def update(memory, policy, optimizer, ppo_epochs, mini_batch_size, clip_ratio=0.2, gamma=0.99, lmbda=0.95):
     rewards = []
@@ -96,7 +103,8 @@ def update(memory, policy, optimizer, ppo_epochs, mini_batch_size, clip_ratio=0.
         for index in BatchSampler(RandomSampler(range(len(memory))), mini_batch_size, drop_last=False):
             batch_states = torch.stack([states[i] for i in index])
             batch_actions = torch.stack([actions[i] for i in index])
-            batch_old_log_prob = torch.stack([old_log_prob[i] for i in index]).detach()
+            batch_old_log_prob = torch.stack(
+                [old_log_prob[i] for i in index]).detach()
             batch_returns = torch.stack([returns[i] for i in index])
             batch_advantage = torch.zeros(len(index), 1)
             for i in range(len(index)):
@@ -104,10 +112,12 @@ def update(memory, policy, optimizer, ppo_epochs, mini_batch_size, clip_ratio=0.
                 log_prob = dist.log_prob(batch_actions[i])
                 ratio = torch.exp(log_prob - batch_old_log_prob[i])
                 surr1 = ratio * batch_advantage[i]
-                surr2 = torch.clamp(ratio, 1 - clip_ratio, 1 + clip_ratio) * batch_advantage[i]
+                surr2 = torch.clamp(ratio, 1 - clip_ratio,
+                                    1 + clip_ratio) * batch_advantage[i]
                 batch_advantage[i] = torch.max(surr1, surr2)
 
             optimizer.zero_grad()
-            batch_loss = -torch.min(batch_advantage, torch.clamp(ratio, 1 - clip_ratio, 1 + clip_ratio) * batch_advantage).mean()
+            batch_loss = -torch.min(batch_advantage, torch.clamp(ratio,
+                                    1 - clip_ratio, 1 + clip_ratio) * batch_advantage).mean()
             batch_loss.backward()
             optimizer.step()
