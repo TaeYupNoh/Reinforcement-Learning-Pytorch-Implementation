@@ -9,6 +9,8 @@ import matplotlib.pyplot as plt
 env = gym.make('FrozenLake-v1')
 
 # Define the Q-Network
+
+
 class QNetwork(nn.Module):
     def __init__(self):
         super(QNetwork, self).__init__()
@@ -17,6 +19,7 @@ class QNetwork(nn.Module):
     def forward(self, x):
         x = self.fc1(x)
         return x
+
 
 # Create the Q-Network and the optimizer
 q_network = QNetwork()
@@ -37,7 +40,7 @@ for i in range(num_episodes):
     done = False
     j = 0
     # The Q-Network
-    while j < 99:
+    while j < 100:
         j += 1
         # Choose an action by greedily (with e chance of random action) from the Q-network
         # np.identity는 대각선만 1로 채운 행렬을 생성 -> 16개의 행에 대해 one-hot encoding 해주는 역할
@@ -70,7 +73,8 @@ for i in range(num_episodes):
     jList.append(j)
     rList.append(rAll)
 
-print("Percent of successful episodes: " + str(sum(rList)/num_episodes*100) + "%")
+print("Percent of successful episodes: " +
+      str(sum(rList)/num_episodes*100) + "%")
 
 # plt.plot(rList)
 # plt.show()
